@@ -20,4 +20,4 @@ class Review(models.Model):
     stars = models.IntegerField()
     review = models.TextField()
     spoilers = models.BooleanField(default=False)
-    critics = models.ManyToManyField(User, related_name='reviews')
+    critic = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reviews')
