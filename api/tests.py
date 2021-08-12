@@ -50,11 +50,22 @@ class ReviewModelTest(TestCase):
             classification=14,
             synopsis='dewuhewe f3iugfb3f rfh3rfh'
         )
+        cls.critic = User.objects.create(
+            **{
+                "username": "Carioca",
+                "password": "1234",
+                "first_name": "Zé",
+                "last_name": "Carioca",
+                "is_superuser": False,
+                "is_staff": True
+            } 
+        )
         cls.stars = 10
         cls.review = "erer erfoer ferf erferfy erfeyhf8eyf8eyfh9e8f efy ..."
         cls.spoilers = False
         cls.review_instance = Review.objects.create(
-            movie=cls.movie, 
+            movie=cls.movie,
+            critic=cls.critic, 
             stars=cls.stars,
             review=cls.review,
             spoilers =cls.spoilers
