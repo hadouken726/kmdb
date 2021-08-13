@@ -83,7 +83,7 @@ class AccountViewTest(TestCase):
     @classmethod
     def setUpTestData(cls) -> None:
         cls.client = APIClient()
-        cls.route = '/api/accounts'
+        cls.route = '/api/accounts/'
         cls.user_data = {
             "username": "user",
             "password": "1234",
@@ -96,15 +96,21 @@ class AccountViewTest(TestCase):
     
     def test_user_successfullly_created(self):
         response = self.client.post(self.route, self.user_data, format='json')
-        user = User.objects.get(username=self.user_data['username'])
-        self.assertIsInstance(user.id, int)
-        expected_response_data = self.user_data.copy()
-        expected_response_data.pop('password')
-        expected_response_data['id'] = user.id
+        expected_response_data = {
+            "id": 1,
+            "username": "user",
+            "password": "1234",
+            "first_name": "John",
+            "last_name": "Wick",
+            "is_superuser": False,
+            "is_staff": False
+        }
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data, expected_response_data)
 
 
     def test_user_already_exists(self):
+        User.objects.create(**self.user_data)
         getted_user = User.objects.filter(username=self.user_data['username']).first()
         self.assertIsNotNone(getted_user)
         response = self.client.post(self.route, self.user_data, format='json')
