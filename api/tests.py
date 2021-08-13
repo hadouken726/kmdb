@@ -1,4 +1,6 @@
 from django.test import TestCase
+from rest_framework.test import APIClient
+from rest_framework import status
 from django.contrib.auth.models import User
 from api.models import Movie, Genre, Review
 
@@ -74,8 +76,51 @@ class ReviewModelTest(TestCase):
 
     def test_create_movie_success(self):
         self.assertIsNotNone(self.review_instance.id)
-    
 
+
+class AccountViewTest(TestCase):
+    
+    @classmethod
+    def setUpTestData(cls) -> None:
+        cls.client = APIClient()
+        cls.route = '/api/accounts/'
+        cls.user_data = {
+            "username": "user",
+            "password": "1234",
+            "first_name": "John",
+            "last_name": "Wick",
+            "is_superuser": False,
+            "is_staff": False
+        }
+        
+    
+    def test_user_successfullly_created(self):
+        response = self.client.post(self.route, self.user_data, format='json')
+        expected_response_data = {
+            "id": 1,
+            "username": "user",
+            "password": "1234",
+            "first_name": "John",
+            "last_name": "Wick",
+            "is_superuser": False,
+            "is_staff": False
+        }
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data, expected_response_data)
+
+
+    def test_user_already_exists(self):
+        User.objects.create(**self.user_data)
+        getted_user = User.objects.filter(username=self.user_data['username']).first()
+        self.assertIsNotNone(getted_user)
+        response = self.client.post(self.route, self.user_data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data, {'username': ["A user with that username already exists."]})
+        
+
+
+
+        
 
 
 
