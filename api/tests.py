@@ -2,6 +2,9 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 from rest_framework import status
 from django.contrib.auth.models import User
+from django.contrib.auth import authenticate
+from django.contrib.auth.hashers import make_password
+from rest_framework.authtoken.models import Token
 from api.models import Movie, Genre, Review
 
 
@@ -99,7 +102,6 @@ class AccountViewTest(TestCase):
         expected_response_data = {
             "id": 1,
             "username": "user",
-            "password": "1234",
             "first_name": "John",
             "last_name": "Wick",
             "is_superuser": False,
@@ -116,7 +118,32 @@ class AccountViewTest(TestCase):
         response = self.client.post(self.route, self.user_data, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertEqual(response.data, {'username': ["A user with that username already exists."]})
-        
+
+
+class LoginViewTest(TestCase):
+    
+    @classmethod
+    def setUpTestData(cls) -> None:
+        cls.client = APIClient()
+        cls.login_data = {'username': 'John', 'password': '123456'}
+        cls.user_data = {
+            "username": "John",
+            "password": "123456",
+            "first_name": "John",
+            "last_name": "Wick",
+            "is_superuser": False,
+            "is_staff": True
+        }
+    
+    def test_user_successfully_logged(self):
+        user_data = self.user_data.copy()
+        user_data['password'] = make_password(user_data['password'])
+        user = User.objects.create(**user_data)
+        token = Token.objects.create(user=user).key
+        response = self.client.post('/api/login/', self.login_data, format='json')
+        self.assertEqual(response.data, {'token': token})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
 
 
 
