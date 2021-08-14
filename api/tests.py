@@ -138,7 +138,7 @@ class LoginViewTest(TestCase):
     def test_user_successfully_logged(self):
         user_data = self.user_data.copy()
         user_data['password'] = make_password(user_data['password'])
-        user = User.objects.create(**self.user_data)
+        user = User.objects.create(**user_data)
         token = Token.objects.create(user=user).key
         response = self.client.post('/api/login/', self.login_data, format='json')
         self.assertEqual(response.data, {'token': token})
