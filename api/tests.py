@@ -1,7 +1,7 @@
 from django.test import TestCase
 from rest_framework.test import APIClient
 from rest_framework import status
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, UserManager
 from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password
 from rest_framework.authtoken.models import Token
@@ -143,6 +143,99 @@ class LoginViewTest(TestCase):
         response = self.client.post('/api/login/', self.login_data, format='json')
         self.assertEqual(response.data, {'token': token})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+
+class MovieViewTest(TestCase):
+
+    @classmethod
+    def setUpTestData(cls) -> None:
+        cls.client = APIClient()
+        cls.admin_user = UserManager().create_superuser('John', password='123456')
+        cls.route = '/api/movie'
+        cls.success_movie_data = {
+            "title": "O Poderoso Chefão 2",
+            "duration": "175m",
+            "genres": [
+                {"name": "Crime"},
+                {"name": "Drama"}
+            ],
+            "premiere": "1972-09-10",
+            "classification": 14,
+            "synopsis": "Don Vito Corleone (Marlon Brando) é o chefe de uma 'família' ..."
+        }
+        cls.repeated_genre_movie_data = {
+            "title": "O Poderoso Chefão 2",
+            "duration": "175m",
+            "genres": [
+                {"name": "Crime"},
+                {"name": "criMe"}
+            ],
+            "premiere": "1972-09-10",
+            "classification": 14,
+            "synopsis": "Don Vito Corleone (Marlon Brando) é o chefe de uma 'família' ..."
+        }
+
+
+    def test_user_is_admin(self):
+        response = self.client.post(self.route, self.success_movie_data, format='json')
+        self.assertTrue(response.request.user.is_superuser)
+        self.assertTrue(response.request.user.is_staff)
+
+        
+    def test_admin_can_create_movie(self):
+        token = Token.objects.create(user=self.admin_user)
+        self.client.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+        response = self.client.post(self.route, self.success_movie_data, format='json')
+        created_movie = Movie.objects.filter(id=1).first()
+        self.assertIsNotNone(created_movie)
+        expected_response = {
+            "id": 1,
+            "title": "O Poderoso Chefão 2",
+            "duration": "175m",
+            "genres": [
+                {
+                    "id": 1,
+                    "name": "Crime"
+                },
+                {
+                    "id": 2,
+                    "name": "Drama"
+                }
+            ],
+            "premiere": "1972-09-10",
+            "classification": 14,
+            "synopsis": "Don Vito Corleone (Marlon Brando) é o chefe de uma ..."
+        }
+        self.assertEqual(response.data, expected_response)
+
+
+    def test_can_not_create_repeated_movie_genre(self):
+        token = Token.objects.create(user=self.admin_user)
+        self.client.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+        response = self.client.post(self.route, self.repeated_genre_movie_data, format='json')
+        created_movie = Movie.objects.filter(id=1).first()
+        self.assertIsNotNone(created_movie)
+        self.assertEqual(len(created_movie.genres), 1)
+        self.assertEqual(created_movie.genres[0].id, 1)
+        expected_response = {
+            "id": 1,
+            "title": "O Poderoso Chefão 2",
+            "duration": "175m",
+            "genres": [
+                {
+                    "id": 1,
+                    "name": "Crime"
+                }
+            ],
+            "premiere": "1972-09-10",
+            "classification": 14,
+            "synopsis": "Don Vito Corleone (Marlon Brando) é o chefe de uma ..."
+        }
+        self.assertEqual(response.data, expected_response)
+
+
+
+        
 
 
 
