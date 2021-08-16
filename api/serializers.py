@@ -45,9 +45,11 @@ class MovieSerializer(serializers.ModelSerializer):
     
     def create(self, validated_data):
         genres = validated_data.pop('genres')
-        genres = set([genre['name'].title() for genre in genres])
+        genres = [genre['name'].title() for genre in genres]
+        unrepeated_genres = []
+        [unrepeated_genres.append({'name': g}) for g in genres if g not in unrepeated_genres]
         movie = Movie.objects.create(**validated_data)
-        for genre in [{'name': g} for g in genres]:
+        for genre in [g for g in unrepeated_genres]:
             gr, _ = Genre.objects.get_or_create(**genre)
             movie.genres.add(gr)
         return movie
