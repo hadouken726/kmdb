@@ -386,3 +386,147 @@ class MovieViewTest(TestCase):
         ]
         self.assertEqual(response.data, expected_data)
 
+
+class MovieDetailViewTest(TestCase):
+    @classmethod
+    def setUpTestData(cls) -> None:
+        cls.admin_user_data = {
+            "username": "John",
+            "first_name": "John",
+            "last_name": "Wick",
+            "is_superuser": True,
+            "is_staff": True
+        }
+        cls.critic_user_data = {
+            "username": "Jack",
+            "first_name": "Jack",
+            "last_name": "Mars",
+            "is_superuser": False,
+            "is_staff": True
+        }
+        cls.review_data = {
+            "stars": 7,
+            "review": "O Poderoso Chefão 2 podia ter dado muito errado...",
+            "spoilers": False
+        }
+        cls.movie_data = {
+            "title": "O Poderoso Chefão 2",
+            "duration": "175m",
+            "genres": [
+                {"name": "Crime"},
+                {"name": "Drama"}
+            ],
+            "premiere": "1972-09-10",
+            "classification": 14,
+            "synopsis": "Don Vito Corleone (Marlon Brando) é o chefe de uma ..."
+        }
+    
+
+    def test_movie_getted_by_admin_user(self):
+        admin_user = User.objects.create(**self.admin_user_data)
+        admin_user.set_password('123456')
+        critic_user = User.objects.create(**self.critic_user_data)
+        critic_user.set_password('123456')
+        token = Token.objects.create(user=admin_user)
+        genres_data = self.movie_data.pop('genres')
+        movie = Movie.objects.create(**self.movie_data)
+        [movie.genres.add(Genre.objects.create(**genre)) for genre in genres_data]
+        Review.objects.create(movie=movie, critic=critic_user, **self.review_data)
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        response = client.get('/api/movies/1')
+        expected_response = {
+            "id": 1,
+            "title": "O Poderoso Chefão 2",
+            "duration": "175m",
+            "genres": [
+                {"id": 1, "name": "Crime"},
+                {"id": 2, "name": "Drama"}
+            ],
+            "premiere": "1972-09-10",
+            "classification": 14,
+            "synopsis": "Don Vito Corleone (Marlon Brando) é o chefe de uma ...",
+            "reviews": [
+                {
+                "id": 1,
+                "critic": {
+                    "id": 2,
+                    "first_name": "Jack",
+                    "last_name": "Mars"
+                    },
+                "stars": 7,
+                "review": "O Poderoso Chefão 2 podia ter dado muito errado...",
+                "spoilers": False
+                }
+            ]
+        }
+        self.assertEqual(response.data, expected_response)
+    
+
+    def test_movie_getted_by_critic_user(self):
+        critic_user = User.objects.create(**self.critic_user_data)
+        critic_user.set_password('123456')
+        token = Token.objects.create(user=critic_user)
+        genres_data = self.movie_data.pop('genres')
+        movie = Movie.objects.create(**self.movie_data)
+        [movie.genres.add(Genre.objects.create(**genre)) for genre in genres_data]
+        Review.objects.create(movie=movie, critic=critic_user, **self.review_data)
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        response = client.get('/api/movies/1/')
+        expected_response = {
+            "id": 1,
+            "title": "O Poderoso Chefão 2",
+            "duration": "175m",
+            "genres": [
+                {"id": 1, "name": "Crime"},
+                {"id": 2, "name": "Drama"}
+            ],
+            "premiere": "1972-09-10",
+            "classification": 14,
+            "synopsis": "Don Vito Corleone (Marlon Brando) é o chefe de uma ...",
+            "reviews": [
+                {
+                "id": 1,
+                "critic": {
+                    "id": 2,
+                    "first_name": "Jack",
+                    "last_name": "Mars"
+                    },
+                "stars": 7,
+                "review": "O Poderoso Chefão 2 podia ter dado muito errado...",
+                "spoilers": False
+                }
+            ]
+        }
+        self.assertEqual(response.data, expected_response)
+    
+
+    def test_movie_getted_by_anonymous_user(self):
+        critic_user = User.objects.create(**self.critic_user_data)
+        critic_user.set_password('123456')
+        genres_data = self.movie_data.pop('genres')
+        movie = Movie.objects.create(**self.movie_data)
+        [movie.genres.add(Genre.objects.create(**genre)) for genre in genres_data]
+        Review.objects.create(movie=movie, critic=critic_user, **self.review_data)
+        client = APIClient()
+        response = client.get('/api/movies/1/')
+        expected_response = {
+            "id": 1,
+            "title": "O Poderoso Chefão 2",
+            "duration": "175m",
+            "genres": [
+                {"id": 1, "name": "Crime"},
+                {"id": 2, "name": "Drama"}
+            ],
+            "premiere": "1972-09-10",
+            "classification": 14,
+            "synopsis": "Don Vito Corleone (Marlon Brando) é o chefe de uma ..."
+        }
+        self.assertEqual(response.data, expected_response)
+
+    
+    def test_invalid_movie_id_from_url(self):
+        client = APIClient()
+        response = client.get('/api/movies/1/')
+        self.assertEqual(response.data, {'detail': 'Not found.'})

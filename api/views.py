@@ -1,7 +1,7 @@
 from api.models import Movie
 from rest_framework.views import APIView, Response, status
 from api.serializers import AccountSerializer, LoginSerializer, MovieSerializer
-from rest_framework.generics import CreateAPIView, ListCreateAPIView
+from rest_framework.generics import ListCreateAPIView
 from rest_framework.authentication import TokenAuthentication
 from api.permissions import IsAdmin, Any
 
