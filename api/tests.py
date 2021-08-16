@@ -276,7 +276,8 @@ class MovieViewTest(TestCase):
         genres_set = [movie.pop('genres') for movie in self.movies_data_to_test_get_method]
         for i, movie_data in enumerate(self.movies_data_to_test_get_method):
             movie = Movie.objects.create(**movie_data)
-            movie.genres.set(genres_set[i])
+            genres = [Genre.objects.create(**genre) for genre in genres_set[i]]
+            movie.genres.set(genres)
         client = APIClient()
         response = client.get(self.route)
         expected_data = [
@@ -310,7 +311,8 @@ class MovieViewTest(TestCase):
         genres_set = [movie.pop('genres') for movie in self.movies_data_to_test_get_method]
         for i, movie_data in enumerate(self.movies_data_to_test_get_method):
             movie = Movie.objects.create(**movie_data)
-            movie.genres.set(genres_set[i])
+            genres = [Genre.objects.create(**genre) for genre in genres_set[i]]
+            movie.genres.set(genres)
         client = APIClient()
         password = make_password(self.critic_user_data.pop('password'))
         critic_user = User.objects.create(**self.critic_user_data, password=password)
@@ -349,7 +351,8 @@ class MovieViewTest(TestCase):
         genres_set = [movie.pop('genres') for movie in self.movies_data_to_test_get_method]
         for i, movie_data in enumerate(self.movies_data_to_test_get_method):
             movie = Movie.objects.create(**movie_data)
-            movie.genres.set(genres_set[i])
+            genres = [Genre.objects.create(**genre) for genre in genres_set[i]]
+            movie.genres.set(genres)
         client = APIClient()
         password = make_password(self.admin_user_data.pop('password'))
         admin_user = User.objects.create(**self.admin_user_data, password=password)

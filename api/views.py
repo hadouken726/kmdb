@@ -1,9 +1,9 @@
 from api.models import Movie
 from rest_framework.views import APIView, Response, status
 from api.serializers import AccountSerializer, LoginSerializer, MovieSerializer
-from rest_framework.generics import CreateAPIView
+from rest_framework.generics import CreateAPIView, ListCreateAPIView
 from rest_framework.authentication import TokenAuthentication
-from api.permissions import IsAdmin
+from api.permissions import IsAdmin, Any
 
 
 class AccountView(APIView):
@@ -22,10 +22,10 @@ class LoginView(APIView):
         return Response(data=serializer.data, status=status.HTTP_200_OK)
 
 
-class MovieView(CreateAPIView):
+class MovieView(ListCreateAPIView):
     queryset = Movie.objects.all()
     serializer_class = MovieSerializer
     authentication_classes = [TokenAuthentication]
-    permission_classes = [IsAdmin]
+    permission_classes = [IsAdmin | Any]
 
 
