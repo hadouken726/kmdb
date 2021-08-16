@@ -158,6 +158,14 @@ class MovieViewTest(TestCase):
             "is_superuser": True,
             "is_staff": True
         }
+        cls.critic_user_data = {
+            "username": "Jack",
+            "password": "123456",
+            "first_name": "Jack",
+            "last_name": "Mars",
+            "is_superuser": False,
+            "is_staff": True
+        }
         cls.route = '/api/movies/'
         cls.success_movie_data = {
             "title": "O Poderoso Chefão 2",
@@ -181,7 +189,30 @@ class MovieViewTest(TestCase):
             "classification": 14,
             "synopsis": "Don Vito Corleone (Marlon Brando) é o chefe de uma ..."
         }
-
+        cls.movies_data_to_test_get_method = [
+            {
+            "title": "O Poderoso Chefão 2",
+            "duration": "175m",
+            "genres": [
+                {"name": "Crime"},
+                {"name": "Drama"}
+            ],
+            "premiere": "1972-09-10",
+            "classification": 14,
+            "synopsis": "Don Vito Corleone (Marlon Brando) é o chefe de uma ..."
+            },
+            {
+            "title": "John Wick",
+            "duration": "144m",
+            "genres": [
+                {"name": "Ação"}
+            ],
+            "premiere": "2014-09-23",
+            "classification": 16,
+            "synopsis": "Continental ..."
+            }
+        
+        ]
 
     def test_admin_can_create_movie(self):
         client = APIClient()
@@ -239,4 +270,116 @@ class MovieViewTest(TestCase):
             "synopsis": "Don Vito Corleone (Marlon Brando) é o chefe de uma ..."
         }
         self.assertEqual(response.data, expected_response)
+    
+
+    def test_anonymous_user_can_get_movies(self):
+        genres_set = [movie.pop('genres') for movie in self.movies_data_to_test_get_method]
+        for i, movie_data in enumerate(self.movies_data_to_test_get_method):
+            movie = Movie.objects.create(**movie_data)
+            movie.genres.set(genres_set[i])
+        client = APIClient()
+        response = client.get(self.route)
+        expected_data = [
+            {
+            "id": 1,
+            "title": "O Poderoso Chefão 2",
+            "duration": "175m",
+            "genres": [
+                {"id": 1, "name": "Crime"},
+                {"id": 2, "name": "Drama"}
+            ],
+            "premiere": "1972-09-10",
+            "classification": 14,
+            "synopsis": "Don Vito Corleone (Marlon Brando) é o chefe de uma ..."
+            },
+            {
+            "id": 2,
+            "title": "John Wick",
+            "duration": "144m",
+            "genres": [
+                {"id": 3, "name": "Ação"}
+            ],
+            "premiere": "2014-09-23",
+            "classification": 16,
+            "synopsis": "Continental ..."
+            }
+        ]
+        self.assertEqual(response.data, expected_data)
+    
+    def test_critic_can_get_movies(self):
+        genres_set = [movie.pop('genres') for movie in self.movies_data_to_test_get_method]
+        for i, movie_data in enumerate(self.movies_data_to_test_get_method):
+            movie = Movie.objects.create(**movie_data)
+            movie.genres.set(genres_set[i])
+        client = APIClient()
+        password = make_password(self.critic_user_data.pop('password'))
+        critic_user = User.objects.create(**self.critic_user_data, password=password)
+        token = Token.objects.create(user=critic_user)
+        client.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+        response = client.get(self.route)
+        expected_data = [
+            {
+            "id": 1,
+            "title": "O Poderoso Chefão 2",
+            "duration": "175m",
+            "genres": [
+                {"id": 1, "name": "Crime"},
+                {"id": 2, "name": "Drama"}
+            ],
+            "premiere": "1972-09-10",
+            "classification": 14,
+            "synopsis": "Don Vito Corleone (Marlon Brando) é o chefe de uma ..."
+            },
+            {
+            "id": 2,
+            "title": "John Wick",
+            "duration": "144m",
+            "genres": [
+                {"id": 3, "name": "Ação"}
+            ],
+            "premiere": "2014-09-23",
+            "classification": 16,
+            "synopsis": "Continental ..."
+            }
+        ]
+        self.assertEqual(response.data, expected_data)
+    
+
+    def test_admin_can_get_movies(self):
+        genres_set = [movie.pop('genres') for movie in self.movies_data_to_test_get_method]
+        for i, movie_data in enumerate(self.movies_data_to_test_get_method):
+            movie = Movie.objects.create(**movie_data)
+            movie.genres.set(genres_set[i])
+        client = APIClient()
+        password = make_password(self.admin_user_data.pop('password'))
+        admin_user = User.objects.create(**self.admin_user_data, password=password)
+        token = Token.objects.create(user=admin_user)
+        client.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+        response = client.get(self.route)
+        expected_data = [
+            {
+            "id": 1,
+            "title": "O Poderoso Chefão 2",
+            "duration": "175m",
+            "genres": [
+                {"id": 1, "name": "Crime"},
+                {"id": 2, "name": "Drama"}
+            ],
+            "premiere": "1972-09-10",
+            "classification": 14,
+            "synopsis": "Don Vito Corleone (Marlon Brando) é o chefe de uma ..."
+            },
+            {
+            "id": 2,
+            "title": "John Wick",
+            "duration": "144m",
+            "genres": [
+                {"id": 3, "name": "Ação"}
+            ],
+            "premiere": "2014-09-23",
+            "classification": 16,
+            "synopsis": "Continental ..."
+            }
+        ]
+        self.assertEqual(response.data, expected_data)
 
