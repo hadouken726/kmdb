@@ -1,3 +1,4 @@
+from api.models import Genre, Movie
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.contrib.auth.hashers import make_password
@@ -27,3 +28,26 @@ class LoginSerializer(serializers.Serializer):
         user = authenticate(**validated_data)
         token, _ = Token.objects.get_or_create(user=user)
         return {'token': token.key}
+
+
+class GenreSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Genre
+        fields = ['id', 'name']
+
+
+
+class MovieSerializer(serializers.ModelSerializer):
+    genres = GenreSerializer(many=True)
+    class Meta:
+        model = Movie
+        fields = ['id', 'title', 'duration', 'genres', 'premiere', 'classification', 'synopsis']
+    
+    def create(self, validated_data):
+        genres = validated_data.pop('genres')
+        genres = set([genre['name'].title() for genre in genres])
+        movie = Movie.objects.create(**validated_data)
+        for genre in [{'name': g} for g in genres]:
+            gr, _ = Genre.objects.get_or_create(**genre)
+            movie.genres.add(gr)
+        return movie

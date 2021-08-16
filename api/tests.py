@@ -6,6 +6,7 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.hashers import make_password
 from rest_framework.authtoken.models import Token
 from api.models import Movie, Genre, Review
+import json
 
 
 class MovieModelTest(TestCase):
@@ -149,9 +150,15 @@ class MovieViewTest(TestCase):
 
     @classmethod
     def setUpTestData(cls) -> None:
-        cls.client = APIClient()
-        cls.admin_user = UserManager().create_superuser('John', password='123456')
-        cls.route = '/api/movie'
+        cls.admin_user_data = {
+            "username": "John",
+            "password": "123456",
+            "first_name": "John",
+            "last_name": "Wick",
+            "is_superuser": True,
+            "is_staff": True
+        }
+        cls.route = '/api/movies/'
         cls.success_movie_data = {
             "title": "O Poderoso Chefão 2",
             "duration": "175m",
@@ -161,7 +168,7 @@ class MovieViewTest(TestCase):
             ],
             "premiere": "1972-09-10",
             "classification": 14,
-            "synopsis": "Don Vito Corleone (Marlon Brando) é o chefe de uma 'família' ..."
+            "synopsis": "Don Vito Corleone (Marlon Brando) é o chefe de uma ..."
         }
         cls.repeated_genre_movie_data = {
             "title": "O Poderoso Chefão 2",
@@ -172,20 +179,17 @@ class MovieViewTest(TestCase):
             ],
             "premiere": "1972-09-10",
             "classification": 14,
-            "synopsis": "Don Vito Corleone (Marlon Brando) é o chefe de uma 'família' ..."
+            "synopsis": "Don Vito Corleone (Marlon Brando) é o chefe de uma ..."
         }
 
 
-    def test_user_is_admin(self):
-        response = self.client.post(self.route, self.success_movie_data, format='json')
-        self.assertTrue(response.request.user.is_superuser)
-        self.assertTrue(response.request.user.is_staff)
-
-        
     def test_admin_can_create_movie(self):
-        token = Token.objects.create(user=self.admin_user)
-        self.client.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
-        response = self.client.post(self.route, self.success_movie_data, format='json')
+        client = APIClient()
+        password = make_password(self.admin_user_data.pop('password'))
+        admin_user = User.objects.create(**self.admin_user_data, password=password)
+        token = Token.objects.create(user=admin_user)
+        client.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+        response = client.post(self.route, self.success_movie_data, format='json')
         created_movie = Movie.objects.filter(id=1).first()
         self.assertIsNotNone(created_movie)
         expected_response = {
@@ -210,13 +214,16 @@ class MovieViewTest(TestCase):
 
 
     def test_can_not_create_repeated_movie_genre(self):
-        token = Token.objects.create(user=self.admin_user)
-        self.client.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
-        response = self.client.post(self.route, self.repeated_genre_movie_data, format='json')
+        client = APIClient()
+        password = make_password(self.admin_user_data.pop('password'))
+        admin_user = User.objects.create(**self.admin_user_data, password=password)
+        token = Token.objects.create(user=admin_user)
+        client.credentials(HTTP_AUTHORIZATION='Token ' + token.key)
+        response = client.post(self.route, self.repeated_genre_movie_data, format='json')
         created_movie = Movie.objects.filter(id=1).first()
         self.assertIsNotNone(created_movie)
-        self.assertEqual(len(created_movie.genres), 1)
-        self.assertEqual(created_movie.genres[0].id, 1)
+        self.assertEqual(created_movie.genres.count(), 1)
+        self.assertEqual(created_movie.genres.first().id, 1)
         expected_response = {
             "id": 1,
             "title": "O Poderoso Chefão 2",
@@ -232,15 +239,4 @@ class MovieViewTest(TestCase):
             "synopsis": "Don Vito Corleone (Marlon Brando) é o chefe de uma ..."
         }
         self.assertEqual(response.data, expected_response)
-
-
-
-        
-
-
-
-
-        
-
-
 
