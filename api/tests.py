@@ -241,6 +241,7 @@ class MovieViewTest(TestCase):
             "classification": 14,
             "synopsis": "Don Vito Corleone (Marlon Brando) é o chefe de uma ..."
         }
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data, expected_response)
 
 
@@ -269,6 +270,7 @@ class MovieViewTest(TestCase):
             "classification": 14,
             "synopsis": "Don Vito Corleone (Marlon Brando) é o chefe de uma ..."
         }
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.data, expected_response)
     
 
@@ -305,6 +307,7 @@ class MovieViewTest(TestCase):
             "synopsis": "Continental ..."
             }
         ]
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data, expected_data)
     
     def test_critic_can_get_movies(self):
@@ -344,6 +347,7 @@ class MovieViewTest(TestCase):
             "synopsis": "Continental ..."
             }
         ]
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data, expected_data)
     
 
@@ -384,6 +388,7 @@ class MovieViewTest(TestCase):
             "synopsis": "Continental ..."
             }
         ]
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data, expected_data)
 
 
@@ -460,6 +465,7 @@ class MovieDetailViewTest(TestCase):
                 }
             ]
         }
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data, expected_response)
     
 
@@ -499,6 +505,7 @@ class MovieDetailViewTest(TestCase):
                 }
             ]
         }
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data, expected_response)
     
 
@@ -523,10 +530,46 @@ class MovieDetailViewTest(TestCase):
             "classification": 14,
             "synopsis": "Don Vito Corleone (Marlon Brando) é o chefe de uma ..."
         }
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data, expected_response)
 
     
     def test_invalid_movie_id_from_url(self):
         client = APIClient()
         response = client.get('/api/movies/1/')
+        self.assertEqual(response.data, status.HTTP_404_NOT_FOUND)
         self.assertEqual(response.data, {'detail': 'Not found.'})
+    
+
+    def test_delete_movie_by_admin(self):
+        admin_user = User.objects.create(**self.admin_user_data)
+        admin_user.set_password('123456')
+        critic_user = User.objects.create(**self.critic_user_data)
+        critic_user.set_password('123456')
+        token = Token.objects.create(user=admin_user)
+        genres_data = self.movie_data.pop('genres')
+        movie = Movie.objects.create(**self.movie_data)
+        [movie.genres.add(Genre.objects.create(**genre)) for genre in genres_data]
+        Review.objects.create(movie=movie, critic=critic_user, **self.review_data)
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        response = client.delete('/api/movies/1/')
+        self.assertIsNone(Review.objects.filter(id=1).first())
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(response.data, '')
+    
+
+    def test_critic_user_try_delete_movie(self):
+        critic_user = User.objects.create(**self.critic_user_data)
+        critic_user.set_password('123456')
+        token = Token.objects.create(user=critic_user)
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        response = client.delete('/api/movies/1/')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+    
+
+    def test_anonymous_user_try_delete_movie(self):
+        client = APIClient()
+        response = client.delete('/api/movies/1/')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
