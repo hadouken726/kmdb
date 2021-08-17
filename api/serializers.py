@@ -1,4 +1,4 @@
-from api.models import Genre, Movie
+from api.models import Genre, Movie, Review
 from rest_framework import serializers
 from django.contrib.auth.models import User
 from django.contrib.auth.hashers import make_password
@@ -7,7 +7,18 @@ from rest_framework.authtoken.models import Token
 from django.shortcuts import get_object_or_404
 
 
-class AccountSerializer(serializers.ModelSerializer):
+class DynamicFieldsModelSerializer(serializers.ModelSerializer):
+    def __init__(self, *args, **kwargs):
+        fields = kwargs.pop('fields', None)
+        super().__init__(*args, **kwargs)
+        if fields is not None:
+            allowed = set(fields)
+            existing = set(self.fields)
+            for field_name in existing - allowed:
+                self.fields.pop(field_name)
+
+
+class AccountSerializer(DynamicFieldsModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'password', 'first_name', 'last_name', 'is_superuser', 'is_staff']
@@ -53,3 +64,19 @@ class MovieSerializer(serializers.ModelSerializer):
             gr, _ = Genre.objects.get_or_create(**genre)
             movie.genres.add(gr)
         return movie
+
+
+class ReviewSerializer(serializers.ModelSerializer):
+    critic = AccountSerializer(fields=('id', 'first_name', 'last_name'))
+    class Meta:
+        model = Review
+        fields = ['id', 'critic', 'stars', 'review', 'spoilers']
+        read_only_fields = ['id', 'critic']
+
+
+class MovieDetailSerializer(DynamicFieldsModelSerializer):
+    reviews = ReviewSerializer(many=True)
+    genres = GenreSerializer(many=True)
+    class Meta:
+        model = Movie
+        fields = ['id', 'title', 'duration', 'genres', 'premiere', 'classification', 'synopsis', 'reviews']

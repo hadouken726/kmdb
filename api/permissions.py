@@ -7,10 +7,16 @@ class IsAdmin(BasePermission):
         if view.__class__.__name__ == 'MovieView':
             if request.method == 'POST':    
                 return give_admin_permission
+        if view.__class__.__name__ == 'MovieDetailView':
+            if request.method == 'DELETE':
+                return give_admin_permission
 
 
 class Any(BasePermission):
     def has_permission(self, request, view):
         if view.__class__.__name__ == 'MovieView':
+            if request.method == 'GET':    
+                return True
+        if view.__class__.__name__ == 'MovieDetailView':
             if request.method == 'GET':    
                 return True

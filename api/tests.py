@@ -439,7 +439,7 @@ class MovieDetailViewTest(TestCase):
         Review.objects.create(movie=movie, critic=critic_user, **self.review_data)
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
-        response = client.get('/api/movies/1')
+        response = client.get('/api/movies/1/')
         expected_response = {
             "id": 1,
             "title": "O Poderoso Chefão 2",
@@ -495,7 +495,7 @@ class MovieDetailViewTest(TestCase):
                 {
                 "id": 1,
                 "critic": {
-                    "id": 2,
+                    "id": 1,
                     "first_name": "Jack",
                     "last_name": "Mars"
                     },
@@ -537,7 +537,7 @@ class MovieDetailViewTest(TestCase):
     def test_invalid_movie_id_from_url(self):
         client = APIClient()
         response = client.get('/api/movies/1/')
-        self.assertEqual(response.data, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(response.data, {'detail': 'Not found.'})
     
 
@@ -556,7 +556,7 @@ class MovieDetailViewTest(TestCase):
         response = client.delete('/api/movies/1/')
         self.assertIsNone(Review.objects.filter(id=1).first())
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        self.assertEqual(response.data, '')
+        self.assertIsNone(response.data)
     
 
     def test_critic_user_try_delete_movie(self):
@@ -566,7 +566,7 @@ class MovieDetailViewTest(TestCase):
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
         response = client.delete('/api/movies/1/')
-        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
     
 
     def test_anonymous_user_try_delete_movie(self):
