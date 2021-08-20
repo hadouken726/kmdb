@@ -390,7 +390,83 @@ class MovieViewTest(TestCase):
         ]
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data, expected_data)
+    
 
+    def test_get_movies_filtered_by_title(self):
+        movies_data = [
+            {
+                "title": "John Wick",
+                "duration": "121m",
+                "premiere": "2014-09-29",
+                "classification": 16,
+                "synopsis": "John Wick é um cara que não leva desaforo..."
+            },
+            {
+                "title": "Um Sonho de Liberdade",
+                "duration": "142m",
+                "premiere": "1994-10-14",
+                "classification": 16,
+                "synopsis": "Andy Dufresne é condenado a duas prisões perpétuas..."
+            },
+            {
+                "title": "Em busca da liberdade",
+                "duration": "175m",
+                "premiere": "2018-02-22",
+                "classification": 14,
+                "synopsis": "Representando a Grã-Bretanha,  corredor Eric Liddell",
+            }
+        ]   
+        genres_data = [{'name': 'Ação'}, {"name": "Drama"}, {"name": "Ficção Científica"}, {"name": "Obra de Época"}]
+        genres = [Genre.objects.create(**genre_data) for genre_data in genres_data]
+        movie1 = Movie.objects.create(**movies_data[0])
+        movie1.genres.add(genres[0])
+        movie2 = Movie.objects.create(**movies_data[1])
+        movie2.genres.add(genres[1])
+        movie2.genres.add(genres[2])
+        movie3 = Movie.objects.create(**movies_data[2])
+        movie3.genres.add(genres[3])
+        client = APIClient()
+        client.generic("GET", "/api/movies/", data=json.dumps({"title": "liberdade"}), content_type="application/json")
+        expected_response = [
+            {
+                "id": 2,
+                "title": "Um Sonho de Liberdade",
+                "duration": "142m",
+                "genres": [
+                    {
+                        "id": 2,
+                        "name": "Drama"
+                    },
+                    {
+                        "id": 3,
+                        "name": "Ficção Científica"
+                    }
+                ],
+                "premiere": "1994-10-14",
+                "classification": 16,
+                "synopsis": "Andy Dufresne é condenado a duas prisões perpétuas..."
+            },
+            {
+                "id": 3,
+                "title": "Em busca da liberdade",
+                "duration": "175m",
+                "genres": [
+                    {
+                        "id": 2,
+                        "name": "Drama"
+                    },
+                    {
+                        "id": 4,
+                        "name": "Obra de Época"
+                    }
+                ],
+                "premiere": "2018-02-22",
+                "classification": 14,
+                "synopsis": "Representando a Grã-Bretanha,  corredor Eric Liddell",
+            }
+        ]
+        self.assertEqual(response.status_code, status.HTTP_200)
+        self.assertEqual(response.data, expected_response)
 
 class MovieDetailViewTest(TestCase):
     @classmethod
@@ -718,7 +794,7 @@ class ReviewViewTest(TestCase):
         critic_user.set_password('123456')
         token = Token.objects.create(user=critic_user)
         movie = Movie.objects.create(**self.movie_data)
-        Review.objects.create(self.review_data, movie=movie, critic=critic_user)
+        Review.objects.create(**self.review_data, movie=movie, critic=critic_user)
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
         response = client.post('/api/movies/1/review/', self.review_data, format='json')
@@ -734,7 +810,7 @@ class ReviewViewTest(TestCase):
         critic_user.set_password('123456')
         token = Token.objects.create(user=critic_user)
         movie = Movie.objects.create(**self.movie_data)
-        Review.objects.create(self.review_data, movie=movie, critic=critic_user)
+        Review.objects.create(**self.review_data, movie=movie, critic=critic_user)
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
         response = client.put('/api/movies/1/review/', self.update_review_data, format='json')
@@ -758,7 +834,7 @@ class ReviewViewTest(TestCase):
         critic_user.set_password('123456')
         token = Token.objects.create(user=critic_user)
         movie = Movie.objects.create(**self.movie_data)
-        Review.objects.create(self.review_data, movie=movie, critic=critic_user)
+        Review.objects.create(**self.review_data, movie=movie, critic=critic_user)
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
         response = client.put('/api/movies/2/review/', self.update_review_data, format='json')
@@ -789,8 +865,9 @@ class ReviewViewTest(TestCase):
         admin_user.set_password = '123456'
         movie = Movie.objects.create(**self.movie_data)
         for index, critic_user in enumerate(self.critic_users_data):
-            User.objects.create(**critic_user).set_password('123456')
-            Review.objects.create(**self.reviews_data[index], critic=critic_user, movie=movie)
+            critic = User.objects.create(**critic_user)
+            critic.set_password('123456')
+            Review.objects.create(**self.reviews_data[index], critic=critic, movie=movie)
         token = Token.objects.create(user=admin_user)
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
@@ -826,8 +903,9 @@ class ReviewViewTest(TestCase):
     def test_get_reviews_for_admin_user(self):
         movie = Movie.objects.create(**self.movie_data)
         for index, critic_user in enumerate(self.critic_users_data):
-            User.objects.create(**critic_user).set_password('123456')
-            Review.objects.create(**self.reviews_data[index], critic=critic_user, movie=movie)
+            critic = User.objects.create(**critic_user)
+            critic.set_password('123456')
+            Review.objects.create(**self.reviews_data[index], critic=critic, movie=movie)
         token = Token.objects.create(user=User.objects.get(id=2))
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
