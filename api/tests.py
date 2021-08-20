@@ -426,7 +426,7 @@ class MovieViewTest(TestCase):
         movie3 = Movie.objects.create(**movies_data[2])
         movie3.genres.add(genres[3])
         client = APIClient()
-        client.generic("GET", "/api/movies/", data=json.dumps({"title": "liberdade"}), content_type="application/json")
+        response = client.generic("GET", "/api/movies/", data=json.dumps({"title": "liberdade"}), content_type="application/json")
         expected_response = [
             {
                 "id": 2,
