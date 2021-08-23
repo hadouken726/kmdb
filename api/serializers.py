@@ -48,7 +48,7 @@ class GenreSerializer(serializers.ModelSerializer):
 
 
 
-class MovieSerializer(serializers.ModelSerializer):
+class MovieSerializer(DynamicFieldsModelSerializer):
     genres = GenreSerializer(many=True)
     class Meta:
         model = Movie

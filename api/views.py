@@ -30,6 +30,15 @@ class MovieView(ListCreateAPIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAdmin | Any]
 
+    def list(self, request, *args, **kwargs):
+        if request.data:
+            deserializer = self.get_serializer(data=request.data, fields=('title',))
+            deserializer.is_valid(raise_exception=True)
+            serializer = self.get_serializer(instance=Movie.objects.filter(title__icontains=deserializer.validated_data['title']), fields=('id', 'title', 'duration', 'genres', 'premiere', 'classification', 'synopsis'), many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        return super().list(request, *args, **kwargs)
+
 
 class MovieDetailView(RetrieveDestroyAPIView):
     queryset = Movie.objects.all()

@@ -426,7 +426,7 @@ class MovieViewTest(TestCase):
         movie3 = Movie.objects.create(**movies_data[2])
         movie3.genres.add(genres[3])
         client = APIClient()
-        response = client.generic("GET", "/api/movies/", data=json.dumps({"title": "liberdade"}), content_type="application/json")
+        response = client.generic(method="GET", path="/api/movies/", data=json.dumps({"title": "liberdade"}), content_type="application/json")
         expected_response = [
             {
                 "id": 2,
@@ -452,10 +452,6 @@ class MovieViewTest(TestCase):
                 "duration": "175m",
                 "genres": [
                     {
-                        "id": 2,
-                        "name": "Drama"
-                    },
-                    {
                         "id": 4,
                         "name": "Obra de Época"
                     }
@@ -465,7 +461,7 @@ class MovieViewTest(TestCase):
                 "synopsis": "Representando a Grã-Bretanha,  corredor Eric Liddell",
             }
         ]
-        self.assertEqual(response.status_code, status.HTTP_200)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data, expected_response)
 
 class MovieDetailViewTest(TestCase):
