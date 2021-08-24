@@ -8,6 +8,7 @@ from api.serializers import AccountSerializer, LoginSerializer, MovieDetailSeria
 from rest_framework.generics import GenericAPIView, ListCreateAPIView, RetrieveDestroyAPIView, get_object_or_404
 from rest_framework.authentication import TokenAuthentication
 from api.permissions import IsAdmin, Any, IsCritic
+from django.db.utils import IntegrityError
 
 
 class AccountView(APIView):
@@ -20,11 +21,13 @@ class AccountView(APIView):
 
 class LoginView(APIView):
     def post(self, request):
-        serializer = LoginSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(data=serializer.data, status=status.HTTP_200_OK)
-
+        try:
+            serializer = LoginSerializer(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(data=serializer.data, status=status.HTTP_200_OK)
+        except IntegrityError:
+            return Response(data={'msg': 'Unauthorized'}, status=status.HTTP_401_UNAUTHORIZED)
 
 class MovieView(ListCreateAPIView):
     queryset = Movie.objects.all()
@@ -84,7 +87,7 @@ class ReviewView(mixins.UpdateModelMixin, mixins.CreateModelMixin, mixins.ListMo
         deserializer = ReviewSerializer(data=self.request.data, fields=('stars', 'review', 'spoilers'))
         deserializer.is_valid(raise_exception=True)
         movie = get_object_or_404(Movie.objects.all(), id=self.kwargs['movie_id'])
-        if Review.objects.filter(movie__id=movie.id).first():
+        if Review.objects.filter(movie__id=movie.id, critic=self.request.user).first():
             return Response(data={"detail": "You already made this review."}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         review = Review.objects.create(critic=self.request.user, movie=movie, **deserializer.validated_data)
         serializer = ReviewSerializer(instance=review)
