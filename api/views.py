@@ -1,11 +1,12 @@
 from django.contrib.auth.models import User
+from rest_framework import mixins
 from rest_framework.permissions import AllowAny
-from api.models import Movie
+from api.models import Movie, Review
 from rest_framework.views import APIView, Response, status
-from api.serializers import AccountSerializer, LoginSerializer, MovieDetailSerializer, MovieSerializer
-from rest_framework.generics import ListCreateAPIView, RetrieveDestroyAPIView
+from api.serializers import AccountSerializer, LoginSerializer, MovieDetailSerializer, MovieSerializer, ReviewSerializer
+from rest_framework.generics import GenericAPIView, ListCreateAPIView, RetrieveDestroyAPIView
 from rest_framework.authentication import TokenAuthentication
-from api.permissions import IsAdmin, Any
+from api.permissions import IsAdmin, Any, IsCritic
 
 
 class AccountView(APIView):
@@ -52,4 +53,24 @@ class MovieDetailView(RetrieveDestroyAPIView):
             serializer = self.get_serializer(self.get_object(), fields=('id', 'title', 'duration', 'genres', 'premiere', 'classification', 'synopsis', 'reviews'))
             return Response(serializer.data, status=status.HTTP_200_OK)
         serializer = self.get_serializer(self.get_object(), fields=('id', 'title', 'duration', 'genres', 'premiere', 'classification', 'synopsis'))
-        return Response(serializer.data, status=status.HTTP_200_OK)    
+        return Response(serializer.data, status=status.HTTP_200_OK)  
+
+
+class ReviewView(mixins.UpdateModelMixin, mixins.CreateModelMixin, mixins.ListModelMixin, GenericAPIView):
+    queryset = Review.objects.all()
+    serializer_class = ReviewSerializer
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAdmin | IsCritic]
+    
+    def get_queryset(self):
+        if not self.request.user.is_superuser:
+            return Review.objects.filter(critic=self.request.user)
+        return Review.objects.all()
+
+    def get_serializer(self, *args, **kwargs):
+        queryset = self.get_queryset()
+        if self.request.method == 'GET':
+            return ReviewSerializer(queryset, fields=('id', 'critic', 'stars', 'review', 'spoilers', 'movie'), many=True)
+    
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)

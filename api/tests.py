@@ -881,7 +881,7 @@ class ReviewViewTest(TestCase):
                 "spoilers": False,
             },
             {
-                "id": 1,
+                "id": 2,
                 "critic": {
                     "id": 3,
                     "first_name": "Jack",
@@ -896,7 +896,7 @@ class ReviewViewTest(TestCase):
         self.assertEqual(response.data, expected_response)
 
 
-    def test_get_reviews_for_admin_user(self):
+    def test_get_reviews_for_critic_user(self):
         movie = Movie.objects.create(**self.movie_data)
         for index, critic_user in enumerate(self.critic_users_data):
             critic = User.objects.create(**critic_user)
@@ -908,7 +908,7 @@ class ReviewViewTest(TestCase):
         response = client.get('/api/reviews/')
         expected_response = [
             {
-                "id": 1,
+                "id": 2,
                 "critic": {
                     "id": 2,
                     "first_name": "Jack",
