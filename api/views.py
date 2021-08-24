@@ -1,10 +1,11 @@
 from django.contrib.auth.models import User
-from rest_framework import mixins
+from django.db.models import fields
+from rest_framework import mixins, request
 from rest_framework.permissions import AllowAny
 from api.models import Movie, Review
 from rest_framework.views import APIView, Response, status
 from api.serializers import AccountSerializer, LoginSerializer, MovieDetailSerializer, MovieSerializer, ReviewSerializer
-from rest_framework.generics import GenericAPIView, ListCreateAPIView, RetrieveDestroyAPIView
+from rest_framework.generics import GenericAPIView, ListCreateAPIView, RetrieveDestroyAPIView, get_object_or_404
 from rest_framework.authentication import TokenAuthentication
 from api.permissions import IsAdmin, Any, IsCritic
 
@@ -61,16 +62,36 @@ class ReviewView(mixins.UpdateModelMixin, mixins.CreateModelMixin, mixins.ListMo
     serializer_class = ReviewSerializer
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAdmin | IsCritic]
+    lookup_field = 'movie_id'
+    
     
     def get_queryset(self):
-        if not self.request.user.is_superuser:
-            return Review.objects.filter(critic=self.request.user)
-        return Review.objects.all()
-
-    def get_serializer(self, *args, **kwargs):
-        queryset = self.get_queryset()
         if self.request.method == 'GET':
-            return ReviewSerializer(queryset, fields=('id', 'critic', 'stars', 'review', 'spoilers', 'movie'), many=True)
-    
+            if not self.request.user.is_superuser:
+                return Review.objects.filter(critic=self.request.user)
+            return Review.objects.all()
+        if self.request.method == 'PUT':
+            return Review.objects.filter(critic=self.request.user, movie__id=self.kwargs['movie_id'])
+
+
     def get(self, request, *args, **kwargs):
-        return self.list(request, *args, **kwargs)
+        queryset = self.get_queryset()
+        serializer = ReviewSerializer(queryset, fields=('id', 'critic', 'stars', 'review', 'spoilers', 'movie'), many=True)
+        return Response(data=serializer.data, status=status.HTTP_200_OK)
+    
+
+    def post(self, request, *args, **kwargs):
+        deserializer = ReviewSerializer(data=self.request.data, fields=('stars', 'review', 'spoilers'))
+        deserializer.is_valid(raise_exception=True)
+        movie = get_object_or_404(Movie.objects.all(), id=self.kwargs['movie_id'])
+        if Review.objects.filter(movie__id=movie.id).first():
+            return Response(data={"detail": "You already made this review."}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        review = Review.objects.create(critic=self.request.user, movie=movie, **deserializer.validated_data)
+        serializer = ReviewSerializer(instance=review)
+        return Response(data=serializer.data, status=status.HTTP_201_CREATED)
+    
+
+    def put(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+
+

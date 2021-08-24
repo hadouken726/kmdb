@@ -675,8 +675,6 @@ class ReviewViewTest(TestCase):
             "review": "O Poderoso Chefão 2 podia ter dado muito certo...",
             "spoilers": True,
         }
-        cls.review_data_stars_0 = cls.review_data.update({'stars': 0})
-        cls.review_data_stars_11 = cls.review_data.update({'stars': 11})
         cls.admin_user_data = {
             "username": "Mugiwara",
             "first_name": "Luffy",
@@ -759,7 +757,12 @@ class ReviewViewTest(TestCase):
         Movie.objects.create(**self.movie_data)
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
-        response = client.post('/api/movies/1/review/', self.review_data_stars_0, format='json')
+        review_data_stars_0 = {
+            "stars": 0,
+            "review": "O Poderoso Chefão 2 podia ter dado muito errado...",
+            "spoilers": False,
+        }
+        response = client.post('/api/movies/1/review/', review_data_stars_0, format='json')
         expected_response = {
             "stars": [
                 "Ensure this value is greater than or equal to 1."
@@ -775,7 +778,12 @@ class ReviewViewTest(TestCase):
         Movie.objects.create(**self.movie_data)
         client = APIClient()
         client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
-        response = client.post('/api/movies/1/review/', self.review_data_stars_11, format='json')
+        review_data_stars_11 = {
+            "stars": 11,
+            "review": "O Poderoso Chefão 2 podia ter dado muito errado...",
+            "spoilers": False,
+        }
+        response = client.post('/api/movies/1/review/', review_data_stars_11, format='json')
         expected_response = {
             "stars": [
                 "Ensure this value is less than or equal to 10."
@@ -818,7 +826,7 @@ class ReviewViewTest(TestCase):
                 "last_name": "Wick"
             },
             "stars": 2,
-            "review": "O Poderoso Chefão 2 podia ter dado muito certo..",
+            "review": "O Poderoso Chefão 2 podia ter dado muito certo...",
             "spoilers": True
         }
         self.assertEqual(response.status_code, status.HTTP_200_OK)

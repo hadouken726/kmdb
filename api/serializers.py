@@ -67,7 +67,7 @@ class MovieSerializer(DynamicFieldsModelSerializer):
 
 
 class ReviewSerializer(DynamicFieldsModelSerializer):
-    critic = AccountSerializer(fields=('id', 'first_name', 'last_name'))
+    critic = AccountSerializer(fields=('id', 'first_name', 'last_name'), read_only=True)
     class Meta:
         model = Review
         fields = ['id', 'critic', 'stars', 'review', 'spoilers']
