@@ -173,8 +173,7 @@ class TestMovieView(TestCase):
         ).json()
         # testa se os ids do gênero drama são os mesmos
         drama1 = movie_1['genres'][1]
-        drama2 = [drama for drama in movie_2['genres'] if drama['id'] == drama1['id']][0] 
-        self.assertEqual(drama1['id'], drama2['id'])
+        self.assertTrue(len([drama for drama in movie_2['genres'] if drama['id'] == drama1['id']][0]), 1)
 
     def test_filter_movies_with_the_filter_request(self):
         # create admin user
