@@ -1,4 +1,4 @@
-from django.test import TestCase
+from django.test import TestCase, client
 from rest_framework.test import APIClient
 from rest_framework import status
 from django.contrib.auth.models import User, UserManager
@@ -390,7 +390,79 @@ class MovieViewTest(TestCase):
         ]
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data, expected_data)
+    
 
+    def test_get_movies_filtered_by_title(self):
+        movies_data = [
+            {
+                "title": "John Wick",
+                "duration": "121m",
+                "premiere": "2014-09-29",
+                "classification": 16,
+                "synopsis": "John Wick é um cara que não leva desaforo..."
+            },
+            {
+                "title": "Um Sonho de Liberdade",
+                "duration": "142m",
+                "premiere": "1994-10-14",
+                "classification": 16,
+                "synopsis": "Andy Dufresne é condenado a duas prisões perpétuas..."
+            },
+            {
+                "title": "Em busca da liberdade",
+                "duration": "175m",
+                "premiere": "2018-02-22",
+                "classification": 14,
+                "synopsis": "Representando a Grã-Bretanha,  corredor Eric Liddell",
+            }
+        ]   
+        genres_data = [{'name': 'Ação'}, {"name": "Drama"}, {"name": "Ficção Científica"}, {"name": "Obra de Época"}]
+        genres = [Genre.objects.create(**genre_data) for genre_data in genres_data]
+        movie1 = Movie.objects.create(**movies_data[0])
+        movie1.genres.add(genres[0])
+        movie2 = Movie.objects.create(**movies_data[1])
+        movie2.genres.add(genres[1])
+        movie2.genres.add(genres[2])
+        movie3 = Movie.objects.create(**movies_data[2])
+        movie3.genres.add(genres[3])
+        client = APIClient()
+        response = client.generic(method="GET", path="/api/movies/", data=json.dumps({"title": "liberdade"}), content_type="application/json")
+        expected_response = [
+            {
+                "id": 2,
+                "title": "Um Sonho de Liberdade",
+                "duration": "142m",
+                "genres": [
+                    {
+                        "id": 2,
+                        "name": "Drama"
+                    },
+                    {
+                        "id": 3,
+                        "name": "Ficção Científica"
+                    }
+                ],
+                "premiere": "1994-10-14",
+                "classification": 16,
+                "synopsis": "Andy Dufresne é condenado a duas prisões perpétuas..."
+            },
+            {
+                "id": 3,
+                "title": "Em busca da liberdade",
+                "duration": "175m",
+                "genres": [
+                    {
+                        "id": 4,
+                        "name": "Obra de Época"
+                    }
+                ],
+                "premiere": "2018-02-22",
+                "classification": 14,
+                "synopsis": "Representando a Grã-Bretanha,  corredor Eric Liddell",
+            }
+        ]
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, expected_response)
 
 class MovieDetailViewTest(TestCase):
     @classmethod
@@ -573,3 +645,287 @@ class MovieDetailViewTest(TestCase):
         client = APIClient()
         response = client.delete('/api/movies/1/')
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class ReviewViewTest(TestCase):
+
+    @classmethod
+    def setUpTestData(cls) -> None:
+        cls.critic_user_data = {
+            "username": "John",
+            "first_name": "John",
+            "last_name": "Wick",
+            "is_superuser": False,
+            "is_staff": True
+        }
+        cls.movie_data = {
+            "title": "O Poderoso Chefão 2",
+            "duration": "175m",
+            "premiere": "1972-09-10",
+            "classification": 14,
+            "synopsis": "Don Vito Corleone (Marlon Brando) é o chefe de uma ..."
+        }
+        cls.review_data = {
+            "stars": 7,
+            "review": "O Poderoso Chefão 2 podia ter dado muito errado...",
+            "spoilers": False,
+        }
+        cls.update_review_data = {
+            "stars": 2,
+            "review": "O Poderoso Chefão 2 podia ter dado muito certo...",
+            "spoilers": True,
+        }
+        cls.admin_user_data = {
+            "username": "Mugiwara",
+            "first_name": "Luffy",
+            "last_name": "Monkey D.",
+            "is_superuser": True,
+            "is_staff": True
+        }
+        cls.critic_users_data = [
+            {
+                "username": "John",
+                "first_name": "John",
+                "last_name": "Wick",
+                "is_superuser": False,
+                "is_staff": True
+            },
+            {
+                "username": "Jack",
+                "first_name": "Jack",
+                "last_name": "Mars",
+                "is_superuser": False,
+                "is_staff": True
+            }
+        ]
+        cls.reviews_data = [
+            {
+                "stars": 9,
+                "review": "O Poderoso Chefão 2 não era o que todos esperavam...",
+                "spoilers": False,
+            },
+            {
+                "stars": 10,
+                "review": "O Poderoso Chefão 2 foi uma surpresa positiva...",
+                "spoilers": False,
+            }
+        ]
+    
+
+    def test_successfully_created_review(self):
+        critic_user = User.objects.create(**self.critic_user_data)
+        critic_user.set_password('123456')
+        token = Token.objects.create(user=critic_user)
+        Movie.objects.create(**self.movie_data)
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        response = client.post('/api/movies/1/review/', self.review_data, format='json')
+        expected_response = {
+            "id": 1,
+            "critic": {
+                "id": 1,
+                "first_name": "John",
+                "last_name": "Wick"
+            },
+            "stars": 7,
+            "review": "O Poderoso Chefão 2 podia ter dado muito errado...",
+            "spoilers": False
+        }
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data, expected_response)
+    
+
+    def test_invalid_movie_id_on_create_review(self):
+        critic_user = User.objects.create(**self.critic_user_data)
+        critic_user.set_password('123456')
+        token = Token.objects.create(user=critic_user)
+        Movie.objects.create(**self.movie_data)
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        response = client.post('/api/movies/2/review/', self.review_data, format='json')
+        expected_response = {
+            'detail': 'Not found.'
+        }
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.data, expected_response)
+    
+
+    def test_stars_review_value_less_than_1_on_create_review(self):
+        critic_user = User.objects.create(**self.critic_user_data)
+        critic_user.set_password('123456')
+        token = Token.objects.create(user=critic_user)
+        Movie.objects.create(**self.movie_data)
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        review_data_stars_0 = {
+            "stars": 0,
+            "review": "O Poderoso Chefão 2 podia ter dado muito errado...",
+            "spoilers": False,
+        }
+        response = client.post('/api/movies/1/review/', review_data_stars_0, format='json')
+        expected_response = {
+            "stars": [
+                "Ensure this value is greater than or equal to 1."
+            ]
+        }
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data, expected_response)
+
+    def test_stars_review_value_greater_than_10_on_create_review(self):    
+        critic_user = User.objects.create(**self.critic_user_data)
+        critic_user.set_password('123456')
+        token = Token.objects.create(user=critic_user)
+        Movie.objects.create(**self.movie_data)
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        review_data_stars_11 = {
+            "stars": 11,
+            "review": "O Poderoso Chefão 2 podia ter dado muito errado...",
+            "spoilers": False,
+        }
+        response = client.post('/api/movies/1/review/', review_data_stars_11, format='json')
+        expected_response = {
+            "stars": [
+                "Ensure this value is less than or equal to 10."
+            ]
+        }
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data, expected_response)
+    
+
+    def test_review_already_performed_by_critic_for_movie_on_create_review(self):
+        critic_user = User.objects.create(**self.critic_user_data)
+        critic_user.set_password('123456')
+        token = Token.objects.create(user=critic_user)
+        movie = Movie.objects.create(**self.movie_data)
+        Review.objects.create(**self.review_data, movie=movie, critic=critic_user)
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        response = client.post('/api/movies/1/review/', self.review_data, format='json')
+        expected_response = {
+            "detail": "You already made this review."
+        }
+        self.assertEqual(response.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertEqual(response.data, expected_response)
+    
+
+    def test_update_review_already_performed_by_critic_for_movie(self):
+        critic_user = User.objects.create(**self.critic_user_data)
+        critic_user.set_password('123456')
+        token = Token.objects.create(user=critic_user)
+        movie = Movie.objects.create(**self.movie_data)
+        Review.objects.create(**self.review_data, movie=movie, critic=critic_user)
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        response = client.put('/api/movies/1/review/', self.update_review_data, format='json')
+        expected_response = {
+            "id": 1,
+            "critic": {
+                "id": 1,
+                "first_name": "John",
+                "last_name": "Wick"
+            },
+            "stars": 2,
+            "review": "O Poderoso Chefão 2 podia ter dado muito certo...",
+            "spoilers": True
+        }
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, expected_response)
+    
+
+    def test_invalid_movie_id_on_update_review(self):
+        critic_user = User.objects.create(**self.critic_user_data)
+        critic_user.set_password('123456')
+        token = Token.objects.create(user=critic_user)
+        movie = Movie.objects.create(**self.movie_data)
+        Review.objects.create(**self.review_data, movie=movie, critic=critic_user)
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        response = client.put('/api/movies/2/review/', self.update_review_data, format='json')
+        expected_response = {
+            "detail": "Not found."
+        }
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.data, expected_response)
+    
+
+    def test_update_review_of_a_movie_non_avaliated_by_critic_yet(self):
+        critic_user = User.objects.create(**self.critic_user_data)
+        critic_user.set_password('123456')
+        token = Token.objects.create(user=critic_user)
+        Movie.objects.create(**self.movie_data)
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        response = client.put('/api/movies/1/review/', self.update_review_data, format='json')
+        expected_response = {
+            "detail": "Not found."
+        }
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(response.data, expected_response)
+
+
+    def test_get_reviews_for_admin_user(self):
+        admin_user = User.objects.create(**self.admin_user_data)
+        admin_user.set_password = '123456'
+        movie = Movie.objects.create(**self.movie_data)
+        for index, critic_user in enumerate(self.critic_users_data):
+            critic = User.objects.create(**critic_user)
+            critic.set_password('123456')
+            Review.objects.create(**self.reviews_data[index], critic=critic, movie=movie)
+        token = Token.objects.create(user=admin_user)
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        response = client.get('/api/reviews/')
+        expected_response = [
+            {
+                "id": 1,
+                "critic": {
+                    "id": 2,
+                    "first_name": "John",
+                    "last_name": "Wick"
+                },
+                "stars": 9,
+                "review": "O Poderoso Chefão 2 não era o que todos esperavam...",
+                "spoilers": False,
+            },
+            {
+                "id": 2,
+                "critic": {
+                    "id": 3,
+                    "first_name": "Jack",
+                    "last_name": "Mars"
+                },
+                "stars": 10,
+                "review": "O Poderoso Chefão 2 foi uma surpresa positiva...",
+                "spoilers": False,
+            }
+        ] 
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, expected_response)
+
+
+    def test_get_reviews_for_critic_user(self):
+        movie = Movie.objects.create(**self.movie_data)
+        for index, critic_user in enumerate(self.critic_users_data):
+            critic = User.objects.create(**critic_user)
+            critic.set_password('123456')
+            Review.objects.create(**self.reviews_data[index], critic=critic, movie=movie)
+        token = Token.objects.create(user=User.objects.get(id=2))
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f'Token {token.key}')
+        response = client.get('/api/reviews/')
+        expected_response = [
+            {
+                "id": 2,
+                "critic": {
+                    "id": 2,
+                    "first_name": "Jack",
+                    "last_name": "Mars"
+                },
+                "stars": 10,
+                "review": "O Poderoso Chefão 2 foi uma surpresa positiva...",
+                "spoilers": False,
+            }
+        ] 
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data, expected_response)

@@ -48,7 +48,7 @@ class GenreSerializer(serializers.ModelSerializer):
 
 
 
-class MovieSerializer(serializers.ModelSerializer):
+class MovieSerializer(DynamicFieldsModelSerializer):
     genres = GenreSerializer(many=True)
     class Meta:
         model = Movie
@@ -66,12 +66,13 @@ class MovieSerializer(serializers.ModelSerializer):
         return movie
 
 
-class ReviewSerializer(serializers.ModelSerializer):
-    critic = AccountSerializer(fields=('id', 'first_name', 'last_name'))
+class ReviewSerializer(DynamicFieldsModelSerializer):
+    critic = AccountSerializer(fields=('id', 'first_name', 'last_name'), read_only=True)
     class Meta:
         model = Review
         fields = ['id', 'critic', 'stars', 'review', 'spoilers']
         read_only_fields = ['id', 'critic']
+        extra_kwargs = {'stars':{'min_value': 1, 'max_value':10}}
 
 
 class MovieDetailSerializer(DynamicFieldsModelSerializer):
